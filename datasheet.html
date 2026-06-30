@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Technical Datasheet Workspace</title>
+    <style>
+        body { font-family: sans-serif; background: #0b132b; color: #f8f9fa; padding: 30px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        header { background: #1e3a8a; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .section-card { background: #1c2541; border: 1px solid #3a506b; padding: 20px; margin-bottom: 20px; border-radius: 8px; position: relative; }
+        [contenteditable="true"] { border-bottom: 1px dashed #00b4d8; padding: 2px; outline: none; }
+        .btn { background: #00b4d8; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .delete-btn { position: absolute; top: 15px; right: 15px; background: none; border: 1px solid #ef4444; color: #ef4444; cursor: pointer; padding: 2px 5px; font-size: 11px; }
+        .status-banner { font-size: 12px; color: #06d6a0; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1 id="ds-title">Loading Datasheet...</h1>
+        <p id="ds-subtitle" contenteditable="true" onblur="saveMeta()">Click to add engineering description baseline architecture layouts...</p>
+    </header>
+
+    <div class="status-banner" id="sync-status">🔄 Reading dynamic parameters...</div>
+    <button class="btn" style="margin-bottom: 20px;" onclick="addNewSection()">➕ Add Custom Architecture Section</button>
+
+    <!-- This is where dynamic elements append themselves -->
+    <div id="sections-root"></div>
+</div>
+
+<script>
+    // ⚠️ PASTE THE SAME COPIED URL HERE:
+    const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+    // 1. LOOK AT THE URL BAR AND EXTRACT "?prod=XXXX"
+    const urlParams = new URLSearchParams(window.location.search);
+    const PRODUCT_ID = urlParams.get('prod') || "Unknown_Product";
+
+    // This unique prefix isolates this product's text entries inside the database
+    const PREFIX = `datasheet_${PRODUCT_ID}::`;
+
+    let serverData = {};
+    const defaultSections = [
+        { id: "sec_1", title: "1. System Topology Overview", text: "Click here to modify default architecture layout parameters." },
+        { id: "sec_2", title: "2. Interface Integration Matrix", text: "Click here to specify platform configurations." }
+    ];
+
+    async function loadDatabase() {
+        try {
+            const response = await fetch(SCRIPT_URL);
+            serverData = await response.json();
+            document.getElementById('sync-status').innerText = `🟢 Cloud Synced for Product ID: ${PRODUCT_ID}`;
+        } catch(e) {
+            document.getElementById('sync-status').innerText = "⚠️ Offline / Local Cache Mode Active";
+        }
+        renderPage();
+    }
+
+    function renderPage() {
+        // Set Header Title
+        const humanName = PRODUCT_ID.replace(/_/g, ' ');
+        document.getElementById('ds-title').innerText = serverData[`${PREFIX}meta_title`] || `${humanName} Technical Specification`;
+        document.getElementById('ds-subtitle').innerText = serverData[`${PREFIX}meta_subtitle`] || "Click to add engineering description baseline architecture layouts...";
+
+        const root = document.getElementById('sections-root');
+        root.innerHTML = "";
+
+        // Check if we have custom components saved for this product
+        let layoutMap = defaultSections;
+        if (serverData[`${PREFIX}manifest`]) {
+            layoutMap = JSON.parse(serverData[`${PREFIX}manifest`]);
+        }
+
+        layoutMap.forEach(sec => {
+            const card = document.createElement('div');
+            card.className = 'section-card';
+            
+            const savedTitle = serverData[`${PREFIX}${sec.id}_title`] || sec.title;
+            const savedText = serverData[`${PREFIX}${sec.id}_text`] || sec.text;
+
+            const isNative = defaultSections.some(n => n.id === sec.id);
+            const deleteBtn = isNative ? '' : `<button class="delete-btn" onclick="deleteSection('${sec.id}')">Delete Element</button>`;
+
+            card.innerHTML = `
+                ${deleteBtn}
+                <h3 contenteditable="true" onblur="saveData('${sec.id}_title', this)">${savedTitle}</h3>
+                <p contenteditable="true" onblur="saveData('${sec.id}_text', this)">${savedText}</p>
+            `;
+            root.appendChild(card);
+        });
+    }
+
+    function addNewSection() {
+        let layoutMap = defaultSections;
+        if (serverData[`${PREFIX}manifest`]) {
+            layoutMap = JSON.parse(serverData[`${PREFIX}manifest`]);
+        } else {
+            layoutMap = JSON.parse(JSON.stringify(defaultSections)); // Deep clone defaults
+        }
+
+        const uniqueId = "custom_" + Date.now();
+        layoutMap.push({ id: uniqueId, title: "New Custom Technical Domain", text: "Click here to add structural parameters." });
+
+        serverData[`${PREFIX}manifest`] = JSON.stringify(layoutMap);
+        serverData[`${PREFIX}${uniqueId}_title`] = "New Custom Technical Domain";
+        serverData[`${PREFIX}${uniqueId}_text`] = "Click here to add structural parameters.";
+
+        renderPage();
+        pushToCloud();
+    }
+
+    function deleteSection(id) {
+        let layoutMap = JSON.parse(serverData[`${PREFIX}manifest`]);
+        layoutMap = layoutMap.filter(s => s.id !== id);
+
+        serverData[`${PREFIX}manifest`] = JSON.stringify(layoutMap);
+        delete serverData[`${PREFIX}${id}_title`];
+        delete serverData[`${PREFIX}${id}_text`];
+
+        renderPage();
+        pushToCloud();
+    }
+
+    function saveData(key, element) {
+        serverData[`${PREFIX}${key}`] = element.innerText;
+        pushToCloud();
+    }
+
+    function saveMeta() {
+        serverData[`${PREFIX}meta_subtitle`] = document.getElementById('ds-subtitle').innerText;
+        pushToCloud();
+    }
+
+    async function pushToCloud() {
+        document.getElementById('sync-status').innerText = "⏳ Saving context parameters to Drive...";
+        try {
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(serverData)
+            });
+            document.getElementById('sync-status').innerText = "🟢 Synced successfully";
+        } catch(e) {
+            document.getElementById('sync-status').innerText = "❌ Sync failure";
+        }
+    }
+
+    window.onload = loadDatabase;
+</script>
+</body>
+</html>

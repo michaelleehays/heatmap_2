@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Architecture Dashboard</title>
+    <style>
+        /* (Your dashboard styling stays exactly as you like it) */
+        body { font-family: sans-serif; padding: 20px; background: #f4f6f9; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
+        .card { background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .search-box { width: 100%; max-width: 400px; padding: 10px; margin-bottom: 20px; border-radius: 20px; border: 1px solid #ccc; }
+        .item-row { display: flex; justify-content: space-between; margin: 8px 0; padding: 4px; }
+        .search-match { background: #fff3cd; border-left: 3px solid #ffc107; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <input type="text" id="global-search" class="search-box" placeholder="🔍 Global Search across all datasheets..." oninput="executeSearch()">
+    
+    <div class="grid" id="dashboard-grid"></div>
+
+<script>
+    // ⚠️ PASTE YOUR COPIED URL HERE:
+    const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+    // Your network product tracking matrix
+    const heatmapData = [
+        { category: "UC", items: [{name: "Calling"}, {name: "Meetings"}] },
+        { category: "Security", items: [{name: "Firepower"}, {name: "Splunk"}] }
+    ];
+
+    let serverData = {};
+
+    async function loadDatabase() {
+        try {
+            const response = await fetch(SCRIPT_URL);
+            serverData = await response.json();
+            buildDashboard();
+        } catch(e) { console.error("Database offline", e); buildDashboard(); }
+    }
+
+    function buildDashboard() {
+        const grid = document.getElementById('dashboard-grid');
+        grid.innerHTML = "";
+
+        heatmapData.forEach(catBlock => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `<h3>${catBlock.category}</h3>`;
+            
+            catBlock.items.forEach(item => {
+                // HERE IS THE DYNAMIC MAGIC: Turn "Webex Calling" into "Webex_Calling"
+                const cleanProdId = item.name.replace(/[^a-zA-Z0-9]/g, '_');
+                
+                const row = document.createElement('div');
+                row.className = 'item-row';
+                row.setAttribute('data-name', item.name.toLowerCase());
+                row.setAttribute('data-prod-id', cleanProdId);
+
+                // They ALL link to datasheet.html, but carry their unique tag (?prod=...)
+                row.innerHTML = `
+                    <span>${item.name}</span>
+                    <a href="datasheet.html?prod=${cleanProdId}" target="_blank">(datasheet)</a>
+                `;
+                card.appendChild(row);
+            });
+            grid.appendChild(card);
+        });
+    }
+
+    function executeSearch() {
+        const query = document.getElementById('global-search').value.toLowerCase().trim();
+        const rows = document.querySelectorAll('.item-row');
+
+        rows.forEach(row => {
+            const prodId = row.getAttribute('data-prod-id');
+            const name = row.getAttribute('data-name');
+            
+            // Collect all database entries that belong to this specific product datasheet
+            let compiledDatasheetText = name; 
+            Object.keys(serverData).forEach(key => {
+                if (key.startsWith(`datasheet_${prodId}::`)) {
+                    compiledDatasheetText += " " + String(serverData[key]).toLowerCase();
+                }
+            });
+
+            if (query === "" || compiledDatasheetText.includes(query)) {
+                row.classList.remove('hidden');
+                if (query !== "") row.classList.add('search-match');
+            } else {
+                row.classList.add('hidden');
+                row.classList.remove('search-match');
+            }
+        });
+    }
+
+    window.onload = loadDatabase;
+</script>
+</body>
+</html>
