@@ -2,138 +2,165 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Technical Datasheet Workspace</title>
+    <title>Architecture Workspace Datasheet Template</title>
     <style>
-        body { font-family: sans-serif; background: #0b132b; color: #f8f9fa; padding: 30px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        header { background: #1e3a8a; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        .section-card { background: #1c2541; border: 1px solid #3a506b; padding: 20px; margin-bottom: 20px; border-radius: 8px; position: relative; }
-        [contenteditable="true"] { border-bottom: 1px dashed #00b4d8; padding: 2px; outline: none; }
-        .btn { background: #00b4d8; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .delete-btn { position: absolute; top: 15px; right: 15px; background: none; border: 1px solid #ef4444; color: #ef4444; cursor: pointer; padding: 2px 5px; font-size: 11px; }
-        .status-banner { font-size: 12px; color: #06d6a0; margin-bottom: 10px; }
+        /* Keeping your styled theme exactly as written */
+        :root {
+            --bg-color: #0b132b; --panel-bg: #1c2541; --accent-blue: #00b4d8;
+            --accent-green: #06d6a0; --text-main: #f8f9fa; --text-muted: #a2a8d3;
+            --border-color: #3a506b; --highlight-bg: rgba(0, 180, 216, 0.1);
+        }
+        body { font-family: sans-serif; background-color: var(--bg-color); color: var(--text-main); padding: 30px; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        header { background: linear-gradient(135deg, #1e3a8a, #3b82f6); padding: 30px; border-radius: 12px; margin-bottom: 30px; }
+        .instruction-banner { background-color: var(--highlight-bg); border-left: 4px solid var(--accent-blue); padding: 15px; border-radius: 4px; margin-bottom: 30px; font-size: 14px; color: var(--accent-blue); }
+        .section-card { background-color: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 25px; margin-bottom: 25px; position: relative; }
+        h2 { font-size: 20px; color: var(--accent-blue); margin-bottom: 15px; border-bottom: 2px solid var(--border-color); padding-bottom: 8px; }
+        [contenteditable="true"] { padding: 4px; border-radius: 4px; outline: none; }
+        [contenteditable="true"]:focus { background-color: rgba(255, 255, 255, 0.08); box-shadow: 0 0 0 2px var(--accent-blue); }
+        .workspace { margin-top: 20px; background: rgba(0, 0, 0, 0.15); border-radius: 6px; padding: 15px; border-left: 3px solid var(--accent-green); }
+        .workspace-title { font-size: 13px; text-transform: uppercase; color: var(--accent-green); margin-bottom: 10px; font-weight: bold; }
+        .notes-area { min-height: 60px; color: var(--text-muted); }
+        .save-bar { position: fixed; bottom: 20px; right: 20px; background-color: var(--panel-bg); border: 1px solid var(--accent-blue); padding: 12px 20px; border-radius: 30px; z-index: 1000; font-size: 12px; }
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 15px;}
+        .btn-blue { background-color: var(--accent-blue); color: #fff; }
+        .delete-btn { position: absolute; top: 20px; right: 25px; background: none; border: 1px solid #ef4444; color: #ef4444; cursor: pointer; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1 id="ds-title">Loading Datasheet...</h1>
-        <p id="ds-subtitle" contenteditable="true" onblur="saveMeta()">Click to add engineering description baseline architecture layouts...</p>
+        <h1 id="ds-header-title">Loading Datasheet Topology...</h1>
+        <p id="ds-header-subtitle" contenteditable="true" onblur="saveMetaField()">Enterprise-Grade Infrastructure Layout Workspace Matrix</p>
     </header>
 
-    <div class="status-banner" id="sync-status">🔄 Reading dynamic parameters...</div>
-    <button class="btn" style="margin-bottom: 20px;" onclick="addNewSection()">➕ Add Custom Architecture Section</button>
+    <div class="instruction-banner" id="sync-status">
+        🔄 Reading runtime URL variables...
+    </div>
 
-    <!-- This is where dynamic elements append themselves -->
-    <div id="sections-root"></div>
+    <button class="btn btn-blue" style="margin-bottom: 20px;" onclick="addNewSection()">➕ Add Custom Architecture Section</button>
+
+    <div id="dynamic-sections-root"></div>
+</div>
+
+<div class="save-bar">
+    <span id="save-status-text">🟢 Connected to Cloud Storage</span>
 </div>
 
 <script>
-    // ⚠️ PASTE THE SAME COPIED URL HERE:
-    const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
-
-    // 1. LOOK AT THE URL BAR AND EXTRACT "?prod=XXXX"
+    // ⚠️ PASTE THE EXACT SAME APPS SCRIPT URL HERE:
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzK3xcGR0T5kPqCxXB7VI1rVlAIExnwsn7z2wum8rWsJ1TeV6Mtyzbg97FHjuov2GEn/exec";
+    
+    // 1. EXTRACT PARAMS (?prod=Nexus)
     const urlParams = new URLSearchParams(window.location.search);
-    const PRODUCT_ID = urlParams.get('prod') || "Unknown_Product";
-
-    // This unique prefix isolates this product's text entries inside the database
+    const PRODUCT_ID = urlParams.get('prod') || "Generic_Product"; 
     const PREFIX = `datasheet_${PRODUCT_ID}::`;
 
     let serverData = {};
+
+    // Standard baseline template sections
     const defaultSections = [
-        { id: "sec_1", title: "1. System Topology Overview", text: "Click here to modify default architecture layout parameters." },
-        { id: "sec_2", title: "2. Interface Integration Matrix", text: "Click here to specify platform configurations." }
+        { id: "sec_1", title: "1. System Architecture & Global Infrastructure", text: "Click to configure architecture data details for this solution configuration stack." },
+        { id: "sec_2", title: "2. Connectivity & Integration Options", text: "Click to write explicit metrics, integration notes, schemas or rules for this component." },
+        { id: "sec_3", title: "3. Protocols, Media, and Network Requirements", text: "Click to write explicit metrics, integration notes, schemas or rules for this component." },
+        { id: "sec_4", title: "4. Security, Compliance & Data Sovereignty", text: "Click to write explicit metrics, integration notes, schemas or rules for this component." }
     ];
 
     async function loadDatabase() {
         try {
             const response = await fetch(SCRIPT_URL);
             serverData = await response.json();
-            document.getElementById('sync-status').innerText = `🟢 Cloud Synced for Product ID: ${PRODUCT_ID}`;
-        } catch(e) {
-            document.getElementById('sync-status').innerText = "⚠️ Offline / Local Cache Mode Active";
+            document.getElementById('sync-status').innerHTML = `⚙️ Architecture Workspace active for: <strong>${PRODUCT_ID.replace(/_/g, ' ')}</strong>`;
+        } catch (e) {
+            document.getElementById('sync-status').innerText = "⚠️ Cloud Connectivity offline.";
         }
         renderPage();
     }
 
     function renderPage() {
-        // Set Header Title
         const humanName = PRODUCT_ID.replace(/_/g, ' ');
-        document.getElementById('ds-title').innerText = serverData[`${PREFIX}meta_title`] || `${humanName} Technical Specification`;
-        document.getElementById('ds-subtitle').innerText = serverData[`${PREFIX}meta_subtitle`] || "Click to add engineering description baseline architecture layouts...";
+        document.getElementById('ds-header-title').innerText = serverData[`${PREFIX}meta_title`] || `${humanName} Technical Datasheet`;
+        document.getElementById('ds-header-subtitle').innerText = serverData[`${PREFIX}meta_subtitle`] || "Enterprise Architecture Layout & Deployment Workspace Matrix";
 
-        const root = document.getElementById('sections-root');
-        root.innerHTML = "";
+        const root = document.getElementById('dynamic-sections-root');
+        root.innerHTML = '';
 
-        // Check if we have custom components saved for this product
-        let layoutMap = defaultSections;
+        let sectionsList = defaultSections;
         if (serverData[`${PREFIX}manifest`]) {
-            layoutMap = JSON.parse(serverData[`${PREFIX}manifest`]);
+            sectionsList = JSON.parse(serverData[`${PREFIX}manifest`]);
         }
 
-        layoutMap.forEach(sec => {
+        sectionsList.forEach(sec => {
             const card = document.createElement('div');
             card.className = 'section-card';
-            
+
             const savedTitle = serverData[`${PREFIX}${sec.id}_title`] || sec.title;
             const savedText = serverData[`${PREFIX}${sec.id}_text`] || sec.text;
+            const savedNotes = serverData[`${PREFIX}${sec.id}_notes`] || '';
 
             const isNative = defaultSections.some(n => n.id === sec.id);
-            const deleteBtn = isNative ? '' : `<button class="delete-btn" onclick="deleteSection('${sec.id}')">Delete Element</button>`;
+            const deleteBtnHtml = isNative ? '' : `<button class="delete-btn" onclick="deleteSection('${sec.id}')">Delete Card</button>`;
 
             card.innerHTML = `
-                ${deleteBtn}
-                <h3 contenteditable="true" onblur="saveData('${sec.id}_title', this)">${savedTitle}</h3>
-                <p contenteditable="true" onblur="saveData('${sec.id}_text', this)">${savedText}</p>
+                ${deleteBtnHtml}
+                <h2 contenteditable="true" onblur="saveField('${sec.id}_title', this)">${savedTitle}</h2>
+                <p contenteditable="true" onblur="saveField('${sec.id}_text', this)">${savedText}</p>
+                
+                <div class="workspace">
+                    <div class="workspace-title">Technical Annotations & References</div>
+                    <div class="notes-area" contenteditable="true" onblur="saveField('${sec.id}_notes', this)">${savedNotes || 'Click to add custom annotations...'}</div>
+                </div>
             `;
             root.appendChild(card);
         });
     }
 
     function addNewSection() {
-        let layoutMap = defaultSections;
+        let sectionsList = defaultSections;
         if (serverData[`${PREFIX}manifest`]) {
-            layoutMap = JSON.parse(serverData[`${PREFIX}manifest`]);
+            sectionsList = JSON.parse(serverData[`${PREFIX}manifest`]);
         } else {
-            layoutMap = JSON.parse(JSON.stringify(defaultSections)); // Deep clone defaults
+            sectionsList = JSON.parse(JSON.stringify(defaultSections));
         }
 
         const uniqueId = "custom_" + Date.now();
-        layoutMap.push({ id: uniqueId, title: "New Custom Technical Domain", text: "Click here to add structural parameters." });
+        sectionsList.push({ id: uniqueId, title: "New Architectural Component", text: "Click to add custom metrics." });
 
-        serverData[`${PREFIX}manifest`] = JSON.stringify(layoutMap);
-        serverData[`${PREFIX}${uniqueId}_title`] = "New Custom Technical Domain";
-        serverData[`${PREFIX}${uniqueId}_text`] = "Click here to add structural parameters.";
+        serverData[`${PREFIX}manifest`] = JSON.stringify(sectionsList);
+        serverData[`${PREFIX}${uniqueId}_title`] = "New Architectural Component";
+        serverData[`${PREFIX}${uniqueId}_text`] = "Click to add custom metrics.";
 
         renderPage();
-        pushToCloud();
+        syncToCloud();
     }
 
     function deleteSection(id) {
-        let layoutMap = JSON.parse(serverData[`${PREFIX}manifest`]);
-        layoutMap = layoutMap.filter(s => s.id !== id);
+        if (!confirm("Remove this layout card?")) return;
+        let sectionsList = JSON.parse(serverData[`${PREFIX}manifest`]);
+        sectionsList = sectionsList.filter(s => s.id !== id);
 
-        serverData[`${PREFIX}manifest`] = JSON.stringify(layoutMap);
+        serverData[`${PREFIX}manifest`] = JSON.stringify(sectionsList);
         delete serverData[`${PREFIX}${id}_title`];
         delete serverData[`${PREFIX}${id}_text`];
+        delete serverData[`${PREFIX}${id}_notes`];
 
         renderPage();
-        pushToCloud();
+        syncToCloud();
     }
 
-    function saveData(key, element) {
-        serverData[`${PREFIX}${key}`] = element.innerText;
-        pushToCloud();
+    function saveField(fieldKey, element) {
+        serverData[`${PREFIX}${fieldKey}`] = element.innerText;
+        syncToCloud();
     }
 
-    function saveMeta() {
-        serverData[`${PREFIX}meta_subtitle`] = document.getElementById('ds-subtitle').innerText;
-        pushToCloud();
+    function saveMetaField() {
+        serverData[`${PREFIX}meta_subtitle`] = document.getElementById('ds-header-subtitle').innerText;
+        syncToCloud();
     }
 
-    async function pushToCloud() {
-        document.getElementById('sync-status').innerText = "⏳ Saving context parameters to Drive...";
+    async function syncToCloud() {
+        document.getElementById('save-status-text').innerText = "⏳ Syncing with Google Drive...";
         try {
             await fetch(SCRIPT_URL, {
                 method: 'POST',
@@ -141,9 +168,9 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(serverData)
             });
-            document.getElementById('sync-status').innerText = "🟢 Synced successfully";
-        } catch(e) {
-            document.getElementById('sync-status').innerText = "❌ Sync failure";
+            document.getElementById('save-status-text').innerText = "🟢 Synced to Drive Account";
+        } catch (err) {
+            document.getElementById('save-status-text').innerText = "❌ Sync failure";
         }
     }
 
